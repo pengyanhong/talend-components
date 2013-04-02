@@ -1,0 +1,28 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    Object obj=ElementParameterParser.getObjectValue(node,"__OBJECT__");
+%>
+com.google.gson.Gson gson_<%=cid%>=new com.google.gson.Gson();
+try{
+	String json_<%=cid%>=gson_<%=cid%>.toJson(<%=obj%>);
+	globalMap.put("<%=cid%>_JSON",json_<%=cid%>);
+}catch(Exception e){
+	e.printStackTrace();
+}

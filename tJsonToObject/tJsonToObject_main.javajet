@@ -1,0 +1,42 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();
+    boolean useVariable=Boolean.valueOf(ElementParameterParser.getValue(node,"__USE_VARIABLE__"));
+    Object jsonVariable=ElementParameterParser.getObjectValue(node,"__JSON_VARIABLE__");
+    String json=ElementParameterParser.getValue(node,"__JSON_TEXT__");
+    if (useVariable==false && json!=null){
+    	json=json.replaceAll("\"", "\\\'");
+   		json=json.replaceAll(System.getProperties().getProperty("line.separator"), "\" + \n \"");
+   	}
+    String className=ElementParameterParser.getValue(node,"__OBJECT_CLASS_NAME__");
+%>
+com.google.gson.Gson gson_<%=cid%>=new com.google.gson.Gson();
+String jsonStr_<%=cid%>=null;
+<% if (useVariable==true){ %>
+	jsonStr_<%=cid%>=jsonVariable;
+<%} else{ %>
+	jsonStr_<%=cid%>=new String("<%=json%>");
+<%}%>
+Object obj_<%=cid%>=null;
+try{
+	obj_<%=cid%>=gson_<%=cid%>.fromJson(jsonStr_<%=cid%>,Class.forName(<%=className%>));
+}catch(Exception e){
+	e.printStackTrace();
+}
+globalMap.put("<%=cid%>_OBJECT",obj_<%=cid%>);
