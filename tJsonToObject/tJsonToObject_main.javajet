@@ -5,6 +5,7 @@
 		org.talend.core.model.metadata.IMetadataTable 
 		org.talend.core.model.metadata.IMetadataColumn 
 		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.EConnectionType
 		org.talend.core.model.process.IConnectionCategory
 		org.talend.designer.codegen.config.CodeGeneratorArgument
 		org.talend.core.model.metadata.types.JavaTypesManager
@@ -17,26 +18,83 @@
     CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
     INode node = (INode)codeGenArgument.getArgument();
     String cid = node.getUniqueName();
-    boolean useVariable=Boolean.valueOf(ElementParameterParser.getValue(node,"__USE_VARIABLE__"));
+    boolean bySchema=Boolean.valueOf(ElementParameterParser.getValue(node,"__BY_SCHEMA__"));
+    boolean byVariable=Boolean.valueOf(ElementParameterParser.getValue(node,"__BY_VARIABLE__"));
+    boolean byText=Boolean.valueOf(ElementParameterParser.getValue(node,"__BY_TEXT__"));
+	String className=ElementParameterParser.getValue(node,"__OBJECT_CLASS_NAME__");
+	className=className.replaceAll("\"","");
+%>
+String jsonStr_<%=cid%>=null;
+StringBuilder strBuffer_<%=cid%> = new StringBuilder();
+<%
+if (bySchema==true){
+	List<IMetadataTable> metadatas = node.getMetadataList();
+	if ((metadatas != null) && (metadatas.size() > 0)) {//b
+		IMetadataTable metadata = metadatas.get(0);
+		if (metadata != null) {//a
+			List<IMetadataColumn> columns = metadata.getListColumns();	
+			List< ? extends IConnection> conns = node.getIncomingConnections();
+	    	for (IConnection conn : conns) {//for
+	    		if (conn.getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {//if
+	    			for (IMetadataColumn column : columns) {//for col
+	    				JavaType javaType = JavaTypesManager.getJavaTypeFromId(column.getTalendType());
+	    				if (javaType == JavaTypesManager.STRING) 
+%>
+							strBuffer_<%=cid%>.append(<%=conn.getName() %>.<%=column.getLabel() %>);
+<%
+					}//for col
+				}//if
+			}//for
+		}//a
+	}//b
+} else if (byVariable==true){
     Object jsonVariable=ElementParameterParser.getObjectValue(node,"__JSON_VARIABLE__");
+%>
+	strBuffer_<%=cid%>.append(jsonVariable);
+<%} else if (byText==true){ 
     String json=ElementParameterParser.getValue(node,"__JSON_TEXT__");
-    if (useVariable==false && json!=null){
+    if (json!=null){
     	json=json.replaceAll("\"", "\\\'");
    		json=json.replaceAll(System.getProperties().getProperty("line.separator"), "\" + \n \"");
    	}
-    String className=ElementParameterParser.getValue(node,"__OBJECT_CLASS_NAME__");
 %>
-com.google.gson.Gson gson_<%=cid%>=new com.google.gson.Gson();
-String jsonStr_<%=cid%>=null;
-<% if (useVariable==true){ %>
-	jsonStr_<%=cid%>=jsonVariable;
-<%} else{ %>
-	jsonStr_<%=cid%>=new String("<%=json%>");
+	strBuffer_<%=cid%>.append(new String("<%=json%>"));
 <%}%>
+
+jsonStr_<%=cid%>=strBuffer_<%=cid%>.toString();
+
 Object obj_<%=cid%>=null;
-try{
-	obj_<%=cid%>=gson_<%=cid%>.fromJson(jsonStr_<%=cid%>,Class.forName(<%=className%>));
-}catch(Exception e){
-	e.printStackTrace();
+if (jsonStr_<%=cid%> != null){
+	try{
+		com.google.gson.Gson gson_<%=cid%>=new com.google.gson.Gson();
+		obj_<%=cid%>=gson_<%=cid%>.fromJson(jsonStr_<%=cid%>,<%=className%>.class);
+	}catch(Exception e){
+		e.printStackTrace();
+	}
 }
 globalMap.put("<%=cid%>_OBJECT",obj_<%=cid%>);
+
+<%
+List<IMetadataTable> metadatas = node.getMetadataList();
+if ((metadatas != null) && (metadatas.size() > 0)) {//b
+	IMetadataTable metadata = metadatas.get(0);
+	if (metadata != null) {//a
+		List<IMetadataColumn> columns = metadata.getListColumns();	
+				
+	List< ? extends IConnection> outConns = node.getOutgoingConnections();
+	for (IConnection conn : outConns) { //2	
+		if (conn.getLineStyle().equals(EConnectionType.FLOW_MAIN)||conn.getLineStyle().equals(EConnectionType.FLOW_MERGE)){ //3
+			String outputConnName = conn.getName();
+			for (int i = 0; i < columns.size(); i++) {//4
+				IMetadataColumn column = columns.get(i);
+				JavaType javaType = JavaTypesManager.getJavaTypeFromId(column.getTalendType());
+	    		if (javaType == JavaTypesManager.OBJECT) 
+%>
+					<%=outputConnName %>.<%=column.getLabel() %> = obj_<%=cid%>;
+<% 
+			}//4
+		}//3
+	}//2
+	}//a
+}//b
+%>
