@@ -16,13 +16,42 @@
 <% 
     CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
     INode node = (INode)codeGenArgument.getArgument();
-    String cid = node.getUniqueName();	
-    Object obj=ElementParameterParser.getObjectValue(node,"__OBJECT__");
+    String cid = node.getUniqueName();
+    Boolean bySchema=("true").equals(ElementParameterParser.getValue(node,"__BY_SCHEMA__"));
+    Boolean byVariable=("true").equals(ElementParameterParser.getValue(node,"__BY_VARIABLE__"));
 %>
 com.google.gson.Gson gson_<%=cid%>=new com.google.gson.Gson();
+String json_<%=cid%>=null;
+Object obj_<%=cid%>=null;
+<%
+    if (bySchema == true){
+		List<IMetadataTable> metadatas = node.getMetadataList();
+		if ((metadatas!=null)&&(metadatas.size()>0)) {//1
+		    IMetadataTable metadata = metadatas.get(0);
+		    if (metadata!=null) {//2
+				List< ? extends IConnection> conns = node.getIncomingConnections();
+		    	IConnection conn = conns.get(0);
+		    	List<IMetadataColumn> columns = metadata.getListColumns();
+		    	if (columns.size()>0){
+    				IMetadataColumn column = columns.get(0);
+%>
+					obj_<%=cid%>=<%=conn.getName() %>.<%=column.getLabel() %>;
+<%
+				}
+			}
+		}
+    }
+    if (byVariable == true){
+    	Object obj=ElementParameterParser.getObjectValue(node,"__OBJECT__");
+%>
+		obj_<%=cid%>=<%=obj%>;
+<%
+	}
+%>
+
 try{
-	String json_<%=cid%>=gson_<%=cid%>.toJson(<%=obj%>);
-	globalMap.put("<%=cid%>_JSON",json_<%=cid%>);
+	json_<%=cid%>=gson_<%=cid%>.toJson(obj_<%=cid%>);
 }catch(Exception e){
 	e.printStackTrace();
 }
+globalMap.put("<%=cid%>_JSON",json_<%=cid%>);
