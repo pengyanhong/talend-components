@@ -18,6 +18,9 @@
     INode node = (INode)codeGenArgument.getArgument();
     String cid = node.getUniqueName();	
     Object factObj=ElementParameterParser.getObjectValue(node,"__INPUT_FACT_OBJECT__");
+    String outputObjClassName=ElementParameterParser.getValue(node,"__OUTPUT_FACT_OBJECT_CLASS_NAME__");
+    outputObjClassName=outputObjClassName.replaceAll("\"","");
 %>
-re_<%=cid%>.processRules(<%=factObj%>);
-globalMap.put("<%=cid%>_RESULT_FACT_OBJECT",<%=factObj%>);
+<%=outputObjClassName%> output=new <%=outputObjClassName%>();
+re_<%=cid%>.processRules(<%=factObj%>,output);
+globalMap.put("<%=cid%>_OUTPUT_FACT_OBJECT",output);
